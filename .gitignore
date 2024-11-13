@@ -1,1 +1,11 @@
+# ignore data
 /MNIST
+/dataset/MNIST
+/dataset/data
+
+
+# others
+.DS_Store
+*.idea
+__pycache__
+*.zip
