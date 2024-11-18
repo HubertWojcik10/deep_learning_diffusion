@@ -9,7 +9,7 @@ def get_sinusoidal_embeddings(timesteps: torch.Tensor, embedding_dim: int = 256,
     
     half_dim = embedding_dim // 2
     
-    # the exponents array is created by dividing each index by half_dim
+# the exponents array is created by dividing each index by half_dim
     exponents = torch.arange(
         half_dim,
         device=timesteps.device,
