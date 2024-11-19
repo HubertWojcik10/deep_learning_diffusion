@@ -256,20 +256,15 @@ class UpBlock(nn.Module):
         self.residual_input_conv = nn.Conv2d(self.in_channels, self.out_channels, kernel_size=1)
 
     def _init_upsample(self):
-        self.up_sample_conv = nn.Upsample(scale_factor=2, mode="nearest")
+        self.up_sample_conv = nn.ConvTranspose2d(self.in_channels, self.in_channels, kernel_size=4, stride=2, padding=1)
 
     def forward(self, x, out_lst, time_embs):
         """
             Forward function for the DownBlock
         """
         resnet_input = x
-
-        #print(f"shape of x before: {x.shape}")
         x = self.up_sample_conv(x)
-        #print(f"shape of x: {x.shape}")
-        print(x.shape, out_lst[1].shape)
         x1 = torch.cat([x, out_lst[1]], dim=1)
-        #print("x1 shape", x1.shape)
 
         out = self.resnet_conv1(x1)
         out = out + self.time_emb_layer1(time_embs)[:, :, None, None]
@@ -304,7 +299,7 @@ class UpBlock(nn.Module):
     
 
 class Unet(nn.Module):
-    def __init__(self, channels_lst=[32, 64, 128], im_channels=1, time_emb_dim=256):
+    def __init__(self, channels_lst=[32, 64], im_channels=1, time_emb_dim=256):
         super().__init__()
 
         self.channels_lst = channels_lst
@@ -347,16 +342,15 @@ class Unet(nn.Module):
         time_embs = get_sinusoidal_embeddings(torch.as_tensor(timesteps).long(), self.time_emb_dim)
         time_embs = self.time_proj(time_embs)
 
-        down_outs = []
+       
         down_out_lst = []
         for down in self.down_blocks:
-            down_outs.append(out)
             out_lst, out = down(out, time_embs)
             down_out_lst.append(out_lst)
 
         out = self.mid_block(out, time_embs) 
 
-        rev_down_outs = list(reversed(down_outs))
+        rev_down_outs = list(reversed(down_out_lst))
         for i, up in enumerate(self.up_blocks):
             out_lst = rev_down_outs[i]
             out = up(out, out_lst, time_embs)
