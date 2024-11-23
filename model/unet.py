@@ -1,12 +1,11 @@
+from typing import Tuple, List
 import torch
 import torch.nn as nn
 from utils.sinusoidal_embeddings import get_sinusoidal_embeddings
 from model.unet_utils import UnetUtils
 
 class DownBlock(nn.Module):
-    """
-        DownBlock part of the Unet.
-    """
+    """ Class for the down-block architecture. """
     def __init__(self, in_channels: int, out_channels: int, time_emb_dim: int, att_head_num: int=4):
         super().__init__()
         self.in_channels = in_channels
@@ -42,7 +41,7 @@ class DownBlock(nn.Module):
         )
         self.down_sample_conv = UnetUtils.down_sample(out_channels=out_channels)
 
-    def forward(self, x, time_embs):
+    def forward(self, x: torch.Tensor, time_embs: torch.Tensor) -> Tuple[List[torch.Tensor], torch.Tensor]:
         """
             Forward function for the DownBlock
         """
@@ -78,9 +77,7 @@ class DownBlock(nn.Module):
 
 
 class MidBlock(nn.Module):
-    """
-        MidBlock part of the Unet.
-    """
+    """ Class for the mid-block architecture. """
     def __init__(self, in_channels, out_channels, time_emb_dim, att_head_num=4):
         super().__init__()
         self.in_channels = in_channels
@@ -113,8 +110,11 @@ class MidBlock(nn.Module):
         )
         
 
-    def forward(self, x, time_embs):
-        # iter 1 
+    def forward(self, x: torch.Tensor, time_embs: torch.Tensor) -> torch.Tensor:
+        """
+            Forward function for the mid block.
+        """
+        # iter 1
         out = self.resnet_conv1(x)
         out = out + self.time_emb_layer1(time_embs)[:, :, None, None]
         out = self.resnet_conv2(out)
@@ -136,6 +136,7 @@ class MidBlock(nn.Module):
         return out
 
 class UpBlock(nn.Module):
+    """ Class for the up-block architecture. """
     def __init__(self, in_channels, out_channels, time_emb_dim, att_head_num=4):
         super().__init__()
         self.in_channels = in_channels
@@ -221,42 +222,33 @@ class Unet(nn.Module):
         self.im_channels = im_channels
         self.time_emb_dim = time_emb_dim
 
+        # gather down blocks
         self.down_blocks = []
         for channel in channels_lst:
             self.down_blocks.append(DownBlock(in_channels=channel, out_channels=channel*2, time_emb_dim=256))
-
+        
+        # gather mid block
         mid_block_channels_num = channels_lst[-1]*2
         self.mid_block = MidBlock(in_channels=mid_block_channels_num, out_channels=mid_block_channels_num, time_emb_dim=256)
 
+        # gather up blocks
         self.up_blocks = []
         for channel in list(reversed(channels_lst)):
             self.up_blocks.append(UpBlock(in_channels=channel * 2 , out_channels=channel, time_emb_dim=256))
 
-        self._init_conv_in()
-        self._init_conv_out()
-        self._init_time_proj()
-
-
-    def _init_conv_in(self):
-        self.conv_in = nn.Conv2d(self.im_channels, self.channels_lst[0], kernel_size=3, padding=(1, 1))
-
-    def _init_conv_out(self, group_num=8):
-        self.norm_out = nn.GroupNorm(group_num, self.channels_lst[0])
-        self.conv_out = nn.Conv2d(self.channels_lst[0], self.im_channels, kernel_size=3, padding=(1, 1))
-    
-    def _init_time_proj(self):
-        self.time_proj = nn.Sequential(
-            nn.Linear(self.time_emb_dim, self.time_emb_dim),
-            nn.SiLU(),
-            nn.Linear(self.time_emb_dim, self.time_emb_dim)
-        )
+        # create conv in & out
+        self.conv_in = UnetUtils.conv_in(im_channels=im_channels, channels_lst=channels_lst)
+        self.norm_out, self.conv_out = UnetUtils.conv_out(im_channels=im_channels, channels_lst=channels_lst)
+        self.time_proj = UnetUtils.time_projection(time_emb_dim=time_emb_dim)
 
     def forward(self, x, timesteps):
+        """
+            Forward function for Unet.
+        """
         out = self.conv_in(x)
 
         time_embs = get_sinusoidal_embeddings(torch.as_tensor(timesteps).long(), self.time_emb_dim)
         time_embs = self.time_proj(time_embs)
-
        
         down_out_lst = []
         for down in self.down_blocks:

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 class UnetUtils:
     """
@@ -125,8 +125,36 @@ class UnetUtils:
         return nn.Conv2d(out_channels, out_channels, kernel_size=4, stride=2, padding=1)
 
     @staticmethod
-    def up_sample(in_channels:int):
+    def up_sample(in_channels:int) -> nn.ConvTranspose2d:
         """
             Create conv2dTranspose2d used for upsampling in the up block.
         """
         return nn.ConvTranspose2d(in_channels, in_channels, kernel_size=4, stride=2, padding=1)
+    
+    @staticmethod
+    def time_projection(time_emb_dim: int) -> nn.Sequential:
+        """
+            Create Unet's time projections.
+        """
+        return nn.Sequential(
+            nn.Linear(time_emb_dim, time_emb_dim),
+            nn.SiLU(),
+            nn.Linear(time_emb_dim, time_emb_dim)
+        )
+    
+    @staticmethod
+    def conv_in(im_channels: int, channels_lst: List[int]) -> nn.Conv2d:
+        """ 
+            Create the initial convolutional layer.
+        """
+        return nn.Conv2d(im_channels, channels_lst[0], kernel_size=3, padding=(1, 1))
+    
+    @staticmethod
+    def conv_out(im_channels:int, channels_lst: List[int], group_num: int=8) -> Tuple[nn.GroupNorm, nn.Conv2d]:
+        """
+            Create the convolutional out layer.
+        """
+        norm_out = nn.GroupNorm(group_num, channels_lst[0])
+        conv_out = nn.Conv2d(channels_lst[0], im_channels, kernel_size=3, padding=(1, 1))
+
+        return norm_out, conv_out
