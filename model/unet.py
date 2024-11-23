@@ -1,86 +1,54 @@
 import torch
 import torch.nn as nn
 from utils.sinusoidal_embeddings import get_sinusoidal_embeddings
+from model.unet_utils import UnetUtils
 
 class DownBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, time_emb_dim, att_head_num=4):
+    """
+        DownBlock part of the Unet.
+    """
+    def __init__(self, in_channels: int, out_channels: int, time_emb_dim: int, att_head_num: int=4):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.time_emb_dim = time_emb_dim
         self.att_head_num = att_head_num
 
-        self._init_resnet1()
-        self._init_time_emb_layer()
-        self._init_resnet2()
-        self._init_attentions()
-        #self._init_residual_input_conv()
-        self._init_downsample()
+        self.resnet_conv1, self.resnet_conv2 = UnetUtils.resnet1(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="down"
+        )
 
+        self.time_emb_layer1, self.time_emb_layer2 = UnetUtils.temb_layer(
+            time_emb_dim=time_emb_dim,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="down"
+        )
 
-    def _init_resnet1(self, group_num=8, dropout_rate=0.):
-        self.resnet_conv1 = nn.Sequential(
-            nn.GroupNorm(1, self.in_channels),
-            nn.SiLU(),
-            nn.Conv2d(self.in_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
+        self.resnet_conv3, self.resnet_conv4 = UnetUtils.resnet2(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="down"
         )
-        self.resnet_conv2 = nn.Sequential(
-            nn.GroupNorm(group_num, self.out_channels),
-            nn.SiLU(),
-            nn.Dropout(dropout_rate), # fix: dropout rate is 0.
-            nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
-        )
-    
-    def _init_time_emb_layer(self):
-        """ Initialize a layer for sinusoidal time embedings """ 
-        self.time_emb_layer1 = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(self.time_emb_dim, self.out_channels)
-        )
-        self.time_emb_layer2 = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(self.time_emb_dim, self.out_channels)
-        )
-    
-    def _init_resnet2(self, group_num=8, dropout_rate=0.): 
-        """ Initialize the second resnet, NOTE: find out whether dropout should be used """
-        self.resnet_conv3 = nn.Sequential(
-            nn.GroupNorm(group_num, self.out_channels),
-            nn.SiLU(),
-            nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
-        )
-        self.resnet_conv4 = nn.Sequential(
-            nn.GroupNorm(group_num, self.out_channels),
-            nn.SiLU(),
-            nn.Dropout(dropout_rate), # fix: dropout rate is 0.
-            nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
-        )
-    
-    
-    def _init_attentions(self, num_groups=8):
-        """ GroupNorm, transpose, and initialize the attention """
-        self.attention_norms1 = nn.GroupNorm(num_groups, self.out_channels)
-        self.attentions1 = nn.MultiheadAttention(self.out_channels, self.att_head_num, batch_first=True)
 
-        self.attention_norms2 = nn.GroupNorm(num_groups, self.out_channels)
-        self.attentions2 = nn.MultiheadAttention(self.out_channels, self.att_head_num, batch_first=True)
-    
-    def _init_residual_input_conv(self):
-        """ NOTE: NOT USED """
-        self.residual_input_conv = nn.Conv2d(self.in_channels, self.out_channels, kernel_size=1)
-
-    def _init_downsample(self):
-        self.down_sample_conv = nn.Conv2d(self.out_channels, self.out_channels, kernel_size=4, stride=2, padding=1)
+        self.attention_norms1, self.attentions1, self.attention_norms2, self.attentions2 = UnetUtils.attentions(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            num_groups=8,
+            att_head_num=att_head_num,
+            block="down"
+        )
+        self.down_sample_conv = UnetUtils.down_sample(out_channels=out_channels)
 
     def forward(self, x, time_embs):
         """
             Forward function for the DownBlock
         """
-        resnet_input = x
         out = self.resnet_conv1(x)
         out = out + self.time_emb_layer1(time_embs)[:, :, None, None]
         out = self.resnet_conv2(out)
-        #out = out + self.residual_input_conv(resnet_input)
 
         batch_size, channels_num , h, w = out.shape
         input_att = out.reshape(batch_size, channels_num, h*w)
@@ -110,6 +78,9 @@ class DownBlock(nn.Module):
 
 
 class MidBlock(nn.Module):
+    """
+        MidBlock part of the Unet.
+    """
     def __init__(self, in_channels, out_channels, time_emb_dim, att_head_num=4):
         super().__init__()
         self.in_channels = in_channels
@@ -117,54 +88,30 @@ class MidBlock(nn.Module):
         self.time_emb_dim = time_emb_dim
         self.att_head_num = att_head_num
 
-        self._init_resnet1()
-        self._init_time_emb_layer()
-        self._init_resnet2()
-        self._init_attentions()
-
-    def _init_resnet1(self, group_num=8, dropout_rate=0.):
-        self.resnet_conv1 = nn.Sequential(
-            nn.GroupNorm(group_num, self.in_channels),
-            nn.SiLU(),
-            nn.Conv2d(self.in_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
+        self.resnet_conv1, self.resnet_conv2 = UnetUtils.resnet1(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="mid"
         )
-        self.resnet_conv2 = nn.Sequential(
-            nn.GroupNorm(group_num, self.out_channels),
-            nn.SiLU(),
-            nn.Dropout(dropout_rate), # fix: dropout rate is 0.
-            nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
+        self.time_emb_layer1, self.time_emb_layer2 = UnetUtils.temb_layer(
+            time_emb_dim=time_emb_dim,
+            in_channels=in_channels, 
+            out_channels=out_channels,
+            block="mid"
         )
-
-    def _init_time_emb_layer(self):
-        """ Initialize a layer for sinusoidal time embedings """ 
-        self.time_emb_layer1 = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(self.time_emb_dim, self.out_channels)
+        self.resnet_conv3, self.resnet_conv4 = UnetUtils.resnet2(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="mid"
         )
-        self.time_emb_layer2 = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(self.time_emb_dim, self.out_channels)
-        )
-
-    def _init_resnet2(self, group_num=8, dropout_rate=0.): 
-        """ Initialize the second resnet, NOTE: find out whether dropout should be used """
-        self.resnet_conv3 = nn.Sequential(
-            nn.GroupNorm(group_num, self.out_channels),
-            nn.SiLU(),
-            nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
-        )
-        self.resnet_conv4 = nn.Sequential(
-            nn.GroupNorm(group_num, self.out_channels),
-            nn.SiLU(),
-            nn.Dropout(dropout_rate), # fix: dropout rate is 0.
-            nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
+        self.attention_norms, self.attentions = UnetUtils.attentions(
+            in_channels=in_channels,
+            out_channels=out_channels, 
+            num_groups=8,
+            att_head_num=att_head_num,
+            block="mid"
         )
         
-    
-    def _init_attentions(self, num_groups=8):
-        """ GroupNorm, transpose, and initialize the attention """
-        self.attention_norms = nn.GroupNorm(num_groups, self.out_channels)
-        self.attentions = nn.MultiheadAttention(self.out_channels, self.att_head_num, batch_first=True)
 
     def forward(self, x, time_embs):
         # iter 1 
@@ -196,71 +143,36 @@ class UpBlock(nn.Module):
         self.time_emb_dim = time_emb_dim
         self.att_head_num = att_head_num
 
-        self._init_resnet1()
-        self._init_time_emb_layer()
-        self._init_resnet2()
-        self._init_attentions()
-        #self._init_residual_input_conv()
-        self._init_upsample()
+        self.resnet_conv1, self.resnet_conv2 = UnetUtils.resnet1(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="up"
+        )
+        self.time_emb_layer1, self.time_emb_layer2 = UnetUtils.temb_layer(
+            time_emb_dim=time_emb_dim,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="up"
+        )
 
+        self.resnet_conv3, self.resnet_conv4 = UnetUtils.resnet2(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            block="up"
+        )
 
-    def _init_resnet1(self, group_num=8, dropout_rate=0.):
-        self.resnet_conv1 = nn.Sequential(
-            nn.GroupNorm(group_num, self.in_channels*2),
-            nn.SiLU(),
-            nn.Conv2d(self.in_channels*2, self.in_channels, kernel_size=3, stride=1, padding=1)
+        self.attention_norms1, self.attentions1, self.attention_norms2, self.attentions2 = UnetUtils.attentions(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            num_groups=8,
+            att_head_num=att_head_num,
+            block="up"
         )
-        self.resnet_conv2 = nn.Sequential(
-            nn.GroupNorm(group_num, self.in_channels),
-            nn.SiLU(),
-            nn.Dropout(dropout_rate), # fix: dropout rate is 0.
-            nn.Conv2d(self.in_channels, self.in_channels, kernel_size=3, stride=1, padding=1)
-        )
-    
-    def _init_time_emb_layer(self):
-        """ Initialize a layer for sinusoidal time embedings """ 
-        self.time_emb_layer1 = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(self.time_emb_dim, self.in_channels)
-        )
-        self.time_emb_layer2 = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(self.time_emb_dim, self.out_channels)
-        )
-    
-    def _init_resnet2(self, group_num=8, dropout_rate=0.): 
-        """ Initialize the second resnet, NOTE: find out whether dropout should be used """
-        self.resnet_conv3 = nn.Sequential(
-            nn.GroupNorm(group_num, self.in_channels*2),
-            nn.SiLU(),
-            nn.Conv2d(self.in_channels*2, self.out_channels, kernel_size=3, stride=1, padding=1)
-        )
-        self.resnet_conv4 = nn.Sequential(
-            nn.GroupNorm(group_num, self.out_channels),
-            nn.SiLU(),
-            nn.Dropout(dropout_rate), # fix: dropout rate is 0.
-            nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=1, padding=1)
-        )
-    
-    
-    def _init_attentions(self, num_groups=8):
-        """ GroupNorm, transpose, and initialize the attention """
-        self.attention_norms1 = nn.GroupNorm(num_groups, self.in_channels)
-        self.attentions1 = nn.MultiheadAttention(self.in_channels, self.att_head_num, batch_first=True)
-
-        self.attention_norms2 = nn.GroupNorm(num_groups, self.out_channels)
-        self.attentions2 = nn.MultiheadAttention(self.out_channels, self.att_head_num, batch_first=True)
-    
-    def _init_residual_input_conv(self):
-        """ NOTE: NOT USED """
-        self.residual_input_conv = nn.Conv2d(self.in_channels, self.out_channels, kernel_size=1)
-
-    def _init_upsample(self):
-        self.up_sample_conv = nn.ConvTranspose2d(self.in_channels, self.in_channels, kernel_size=4, stride=2, padding=1)
+        self.up_sample_conv = UnetUtils.up_sample(in_channels=in_channels)
 
     def forward(self, x, out_lst, time_embs):
         """
-            Forward function for the DownBlock
+            Forward function for the UpBlock.
         """
         resnet_input = x
         x = self.up_sample_conv(x)
@@ -299,6 +211,9 @@ class UpBlock(nn.Module):
     
 
 class Unet(nn.Module):
+    """
+        Main Unet class, which assembles the down, mid, and up block and runs forward function.
+    """
     def __init__(self, channels_lst=[32, 64], im_channels=1, time_emb_dim=256):
         super().__init__()
 
