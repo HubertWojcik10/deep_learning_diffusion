@@ -52,5 +52,5 @@ class MnistDataset(Dataset):
         ])
         image = transform(image)
 
-        return image, label
+        return image
 
