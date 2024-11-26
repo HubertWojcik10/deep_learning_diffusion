@@ -53,6 +53,7 @@ def train(model,device, epochs_num:int, train_loader, val_loader, noise_schedule
         plot_loss(train_loss, val_loss)
         print(f'Epoch: {epoch}, Train Loss: {sum(train_loss)/len(train_loss)}, Val Loss: {sum(val_loss)/len(val_loss)}')
         
+        torch.save(model.state_dict(), f'./model/model.pth')
 
 
 def plot_loss(train_loss, val_loss):
@@ -60,6 +61,7 @@ def plot_loss(train_loss, val_loss):
     plt.plot(val_loss, label='val')
     plt.legend()
     plt.show()
+    plt.savefig('loss.png')
 
 
 if __name__ == '__main__':
