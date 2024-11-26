@@ -6,8 +6,9 @@ class NoiseScheduler:
     """
         Scheduler class that gradually adds noise to images.
     """
-    def __init__(self, num_timesteps: float, beta_start: float, beta_end: float) -> Tuple[Tensor, Tensor]:
-        self.beta = torch.linspace(beta_start, beta_end, num_timesteps) 
+    def __init__(self, device, num_timesteps: float, beta_start: float, beta_end: float) -> Tuple[Tensor, Tensor]:
+        self.device = device
+        self.beta = torch.linspace(beta_start, beta_end, num_timesteps).to(self.device)
         self.alpha = 1 - self.beta
         self.alpha_bar = torch.cumprod(self.alpha, dim=0)
     
@@ -20,8 +21,8 @@ class NoiseScheduler:
         noise = torch.randn_like(batch)
         
         # computing the scaling factors
-        sqrt_alpha_bar_t = torch.sqrt(self.alpha_bar[t]).view(-1, 1, 1, 1)   # this information tells us how much of the original image remains after t steps of noising
-        sqrt_one_minus_alpha_bar_t = torch.sqrt(1 - self.alpha_bar[t]).view(-1, 1, 1, 1) # .view() changes the shape so that it fits (batch size, channels, height, width)
+        sqrt_alpha_bar_t = torch.sqrt(self.alpha_bar[t]).view(-1, 1, 1, 1).to(self.device)   # this information tells us how much of the original image remains after t steps of noising
+        sqrt_one_minus_alpha_bar_t = torch.sqrt(1 - self.alpha_bar[t]).view(-1, 1, 1, 1).to(self.device) # .view() changes the shape so that it fits (batch size, channels, height, width)
 
         # forward process formula
         x_t = sqrt_alpha_bar_t * batch + sqrt_one_minus_alpha_bar_t * noise

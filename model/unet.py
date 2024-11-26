@@ -217,37 +217,57 @@ class Unet(nn.Module):
     """
     def __init__(self, channels_lst=[32, 64], im_channels=1, time_emb_dim=256):
         super().__init__()
-
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.channels_lst = channels_lst
         self.im_channels = im_channels
         self.time_emb_dim = time_emb_dim
 
         # gather down blocks
-        self.down_blocks = []
+        self.down_blocks = nn.ModuleList()
         for channel in channels_lst:
-            self.down_blocks.append(DownBlock(in_channels=channel, out_channels=channel*2, time_emb_dim=256))
+            self.down_blocks.append(
+                DownBlock(
+                    in_channels=channel, 
+                    out_channels=channel * 2, 
+                    time_emb_dim=256
+                ).to(self.device)  # Move each block to device
+            )
         
         # gather mid block
-        mid_block_channels_num = channels_lst[-1]*2
-        self.mid_block = MidBlock(in_channels=mid_block_channels_num, out_channels=mid_block_channels_num, time_emb_dim=256)
+        mid_block_channels_num = channels_lst[-1] * 2
+        self.mid_block = MidBlock(
+            in_channels=mid_block_channels_num, 
+            out_channels=mid_block_channels_num, 
+            time_emb_dim=256
+        ).to(self.device)
 
         # gather up blocks
-        self.up_blocks = []
+        self.up_blocks = nn.ModuleList()
         for channel in list(reversed(channels_lst)):
-            self.up_blocks.append(UpBlock(in_channels=channel * 2 , out_channels=channel, time_emb_dim=256))
+            self.up_blocks.append(
+                UpBlock(
+                    in_channels=channel * 2, 
+                    out_channels=channel, 
+                    time_emb_dim=256
+                ).to(self.device)  # Move each block to device
+            )
 
         # create conv in & out
-        self.conv_in = UnetUtils.conv_in(im_channels=im_channels, channels_lst=channels_lst)
+        self.conv_in = UnetUtils.conv_in(im_channels=im_channels, channels_lst=channels_lst).to(self.device)
         self.norm_out, self.conv_out = UnetUtils.conv_out(im_channels=im_channels, channels_lst=channels_lst)
-        self.time_proj = UnetUtils.time_projection(time_emb_dim=time_emb_dim)
+        self.norm_out = self.norm_out.to(self.device)
+        self.conv_out = self.conv_out.to(self.device)
+        self.time_proj = UnetUtils.time_projection(time_emb_dim=time_emb_dim).to(self.device)
 
     def forward(self, x, timesteps):
         """
             Forward function for Unet.
         """
+        x = x.to(self.device)  # Ensure input is on the correct device
+        timesteps = torch.as_tensor(timesteps).long().to(self.device)  # Move timesteps tensor to device
         out = self.conv_in(x)
 
-        time_embs = get_sinusoidal_embeddings(torch.as_tensor(timesteps).long(), self.time_emb_dim)
+        time_embs = get_sinusoidal_embeddings(timesteps, self.time_emb_dim).to(self.device)
         time_embs = self.time_proj(time_embs)
        
         down_out_lst = []
@@ -255,7 +275,7 @@ class Unet(nn.Module):
             out_lst, out = down(out, time_embs)
             down_out_lst.append(out_lst)
 
-        out = self.mid_block(out, time_embs) 
+        out = self.mid_block(out, time_embs)
 
         rev_down_outs = list(reversed(down_out_lst))
         for i, up in enumerate(self.up_blocks):
@@ -267,22 +287,3 @@ class Unet(nn.Module):
         out = self.conv_out(out)
 
         return out
-
-
-
-        
-
-
-
-
-
-
-        
-
-        
-
-
-
-
-
-
