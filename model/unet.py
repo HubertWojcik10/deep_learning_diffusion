@@ -129,7 +129,7 @@ class MidBlock(nn.Module):
         out = out + out_att
 
         # iter 2
-        out = self.resnet_conv3(x)
+        out = self.resnet_conv3(out)
         out = out + self.time_emb_layer2(time_embs)[:, :, None, None]
         out = self.resnet_conv4(out)
 
