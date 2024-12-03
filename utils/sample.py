@@ -26,12 +26,13 @@ def sample(model, scheduler, config):
 
     for i in tqdm(reversed(range(config['num_timesteps']))):
         # Get prediction of noise
-        noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))
-        
-        # Use scheduler to get x0 and xt-1
-        xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
-        
-        if i % 100 == 0:
+        indices = [0, 100, 300, 800, 999]
+        if i in indices:
+            noise_pred = model(xt, torch.as_tensor(i).unsqueeze(0).to(device))
+            
+            # Use scheduler to get x0 and xt-1
+            xt, x0_pred = scheduler.sample_prev_timestep(xt, noise_pred, torch.as_tensor(i).to(device))
+            
             # Save x0
             ims = torch.clamp(xt, -1., 1.).detach().cpu()
             ims = (ims + 1) / 2

@@ -286,4 +286,6 @@ class Unet(nn.Module):
         out = nn.SiLU()(out)
         out = self.conv_out(out)
 
+        print(out[:5])
+
         return out
