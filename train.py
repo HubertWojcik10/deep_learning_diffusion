@@ -16,7 +16,6 @@ def train(model,device, epochs_num:int, train_loader, noise_scheduler, lr:float=
 
     for epoch in range(epochs_num):    
         train_loss=[]
-        val_loss=[]
         model.train()
         for i, (inputs, labels) in enumerate(tqdm(train_loader)):
             optimizer.zero_grad()
