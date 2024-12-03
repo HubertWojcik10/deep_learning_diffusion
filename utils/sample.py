@@ -42,3 +42,23 @@ def sample(model, scheduler, config):
             # Save the image
             img.save(os.path.join(samples_dir, f'x0_{i}.png'))
             img.close()
+            
+def infer():
+    config = load_params("config.json")
+    
+    
+    # Load model with checkpoint
+    model = Unet().to(device)
+    model.load_state_dict(torch.load(config['model_path'], map_location=device))
+    model.eval()
+    
+    # Create the noise scheduler
+    scheduler = NoiseScheduler(t=config['num_timesteps'],
+                                     beta_start=config['beta_start'],
+                                     beta_end=config['beta_end'])
+    with torch.no_grad():
+        sample(model, scheduler, config)
+
+
+if __name__ == '__main__':
+    infer()

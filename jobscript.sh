@@ -4,8 +4,8 @@
 #BSUB -J diffusion          # Job name
 
 ### -------------specify output and error log ----------------
-#BSUB -o training_output.log  # Standard output log
-#BSUB -e training_error.log   # Standard error log
+#BSUB -o training_output_test.log  # Standard output log
+#BSUB -e training_error_test.log   # Standard error log
 
 ### -------------specify number of cores ----------------
 #BSUB -n 4                    # Number of cores
@@ -38,4 +38,4 @@ source $ENV_NAME/bin/activate
 
 ### -------------run the training script ----------------
 # Run the training script
-python train.py 
+python utils/sample.py

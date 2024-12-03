@@ -1,13 +1,15 @@
 {
     "root_dir": "./dataset/data",
     "batch_size": 32,
-    "learning_rate": 0.001,
-    "epochs_num": 1,
+    "learning_rate": 0.0001,
+    "epochs_num": 10,
     "num_timesteps": 1000,
     "beta_start": 0.0001,
     "beta_end": 0.02,
     "image_size": 28,
     "channels_num": 1,
     "num_grid_rows" : 10,
-    "task_name": "default"
+    "task_name": "default",
+    "model_path": "model/model.pth",
+    "num_samples": 100
 }
