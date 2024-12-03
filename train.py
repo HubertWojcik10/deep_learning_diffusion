@@ -8,11 +8,16 @@ from torch.utils.data import DataLoader, random_split
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
+from utils.fid import prepare_inception_model, compute_fid
 
-def train(model,device, epochs_num:int, train_loader, val_loader, noise_scheduler, lr:float=0.001):
-  
+def train(model, device, epochs_num:int, train_loader, val_loader, noise_scheduler, lr:float=0.001, fid_eval_interval:int=5, activations_real_path:str=","):
+
     optimizer= torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.MSELoss()
+
+    #FID score initialization
+    inception_model = prepare_inception_model(device)
+    activations_real = torch.load(activations_real_path)
 
     for epoch in range(epochs_num):    
         train_loss=[]
@@ -38,6 +43,24 @@ def train(model,device, epochs_num:int, train_loader, val_loader, noise_schedule
 
             if i % 100 == 0:
                 print(f'Epoch: {epoch}, Batch: {i}, Loss: {loss}')
+        
+        #getting the FID score
+        if epoch % fid_eval_interval == 0:
+
+            fake_images = []
+            for inputs in train_loader:
+                inputs = inputs.float().to(device)
+                t = torch.randint(0, 1000, (inputs.shape[0],)).to(device)
+                noisy_inputs, _ = noise_scheduler.add_noise(inputs, t)
+                fake_images_batch = model(noisy_inputs, t).detach().cpu()
+                fake_images.extend(fake_images_batch)
+
+            fake_images = torch.stack(fake_images)  #converting list to tensor
+
+            fid_score = compute_fid(activations_real, fake_images, inception_model, device)
+            print(f'FID at epoch {epoch}: {fid_score}')
+
+            #can we save the fake images here?
 
         model.eval()
         with torch.no_grad():
