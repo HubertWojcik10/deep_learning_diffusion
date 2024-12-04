@@ -9,3 +9,9 @@
 *.idea
 __pycache__
 *.zip
+
+# env
+/fid_loc
+
+# activations file
+real_activations.pth

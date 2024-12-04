@@ -14,6 +14,7 @@ def prepare_inception_model(device):
     model.fc = nn.Identity()  # Removing the classification layer
     model.eval()
     model.to(device)
+
     return model
 
 
@@ -23,6 +24,7 @@ def get_activations(images, model, device):
     Expects images in [B, C, H, W] format with values normalized to [0, 1].
     """
     images = images.to(device)
+    print(f"Input shape before processing: {images.shape}")
 
     # Converting grayscale to RGB for MNIST
     if images.shape[1] == 1:
@@ -34,9 +36,8 @@ def get_activations(images, model, device):
     # Normalizing to match the v3 preprocessing
     images = (images - 0.5) / 0.5  # Normalize to [-1, 1]
 
-    # Getting the activations
     activations = model(images)
-    return activations.cpu().numpy()
+    return activations.cpu().detach()
 
 
 def compute_fid(activations_real_path, generated_images, inception_model, device):
@@ -47,8 +48,8 @@ def compute_fid(activations_real_path, generated_images, inception_model, device
     activations_real = torch.load(activations_real_path)
     mu_real, sigma_real = activations_real.mean(axis=0), np.cov(activations_real, rowvar=False)
 
-    # Preparing fake image activations
-    generated_images_tensor = torch.tensor(generated_images).permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
+    # Preparing fake image activationss
+    generated_images_tensor = torch.tensor(generated_images).permute(0, 1, 2, 3)  # [B, H, W, C] -> [B, C, H, W]
     activations_fake = get_activations(generated_images_tensor, inception_model, device)
     mu_fake, sigma_fake = activations_fake.mean(axis=0), np.cov(activations_fake, rowvar=False)
 
