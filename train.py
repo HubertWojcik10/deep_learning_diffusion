@@ -107,10 +107,6 @@ if __name__ == '__main__':
     trainset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
     train_loader = DataLoader(trainset, batch_size=params['batch_size'], shuffle=True, num_workers=2)
 
-    # Just take first two batches for testing
-    train_loader = iter(train_loader)
-    train_loader = [next(train_loader), next(train_loader)]
-
     model = Unet()
     scheduler = NoiseScheduler(DEVICE, params["num_timesteps"], params["beta_start"], params["beta_end"])
 
