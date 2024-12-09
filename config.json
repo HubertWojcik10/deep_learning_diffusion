@@ -11,5 +11,6 @@
     "num_grid_rows" : 10,
     "task_name": "default",
     "model_path": "model/model.pth",
+    "activations_path": "real_activations.pth",
     "num_samples": 100
 }
