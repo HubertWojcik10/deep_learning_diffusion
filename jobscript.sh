@@ -4,8 +4,8 @@
 #BSUB -J diffusion          # Job name
 
 ### -------------specify output and error log ----------------
-#BSUB -o training_output_test.log  # Standard output log
-#BSUB -e training_error_test.log   # Standard error log
+#BSUB -o training_output_100-10_epochs.log  # Standard output log
+#BSUB -e training_error_100-10_epochs.log   # Standard error log
 
 ### -------------specify number of cores ----------------
 #BSUB -n 4                    # Number of cores
@@ -20,9 +20,9 @@
 ### -------------specify wall-clock time ----------------
 #BSUB -W 02:00                 # Wall time (2 hours)
 
+
 ### -------------create and activate virtual environment ----------------
 # Create and activate the virtual environment
-
 
 ENV_NAME=diffusion
 if [ ! -d "$ENV_NAME" ]; then
@@ -34,7 +34,6 @@ fi
 
 # Activate the virtual environment
 source $ENV_NAME/bin/activate
-
 
 ### -------------run the training script ----------------
 # Run the training script
