@@ -2,7 +2,7 @@
     "root_dir": "./dataset/data",
     "batch_size": 32,
     "learning_rate": 0.0001,
-    "epochs_num": 10,
+    "epochs_num": 20,
     "num_timesteps": 1000,
     "beta_start": 0.0001,
     "beta_end": 0.02,
@@ -12,5 +12,5 @@
     "task_name": "default",
     "model_path": "model/model.pth",
     "activations_path": "real_activations.pth",
-    "num_samples": 100
+    "num_samples": 5
 }

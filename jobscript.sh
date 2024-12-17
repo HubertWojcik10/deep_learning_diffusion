@@ -38,4 +38,4 @@ source $ENV_NAME/bin/activate
 
 ### -------------run the training script ----------------
 # Run the training script
-python utils/sample.py
+python train.py
