@@ -25,7 +25,7 @@ def train(
     lr: float,
     activations_path: str, 
     fid_eval_interval: int=1,
-    fid_sample_size: int = 100,
+    fid_sample_size: int = 100, #play around with this one to improve fid
     sample_save_dir: str = "samples",
     test_loader = DataLoader
 ):
@@ -71,7 +71,7 @@ def train(
         if epoch % fid_eval_interval == 0:
             print("Generating images for FID computation...")
             xt = torch.randn((fid_sample_size, 1, 28, 28)).to(device)
-            sampled_images = sample(model, xt, noise_scheduler, params, device, 100)
+            sampled_images = sample(model, xt, noise_scheduler, params, device, 100) #play around with this one to improve fid
 
             # # Save sampled images for visualization
             # for idx, img in enumerate(sampled_images):
