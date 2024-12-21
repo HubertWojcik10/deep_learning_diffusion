@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import torchvision
 import os
 from torchvision.utils import make_grid
+from typing import Dict, Any
 
 def train(
     model: torch.nn.Module,
@@ -25,7 +26,7 @@ def train(
     lr: float,
     activations_path: str, 
     fid_eval_interval: int=1,
-    fid_sample_size: int = 100, #play around with this one to improve fid
+    fid_sample_size: int = 100, 
     sample_save_dir: str = "samples",
     test_loader = DataLoader
 ):
@@ -64,14 +65,12 @@ def train(
 
             if i % 100 == 0:
                 print(f'Epoch: {epoch}, Batch: {i}, Loss: {round(float(loss), 5)}')      
-        #evaluate on test set
-        #eval_loss = evaluate_on_test_set(model, test_loader, noise_scheduler, device)
-        #print(f'Epoch: {epoch}, Test Loss: {round(eval_loss, 5)}')
+
         # Evaluate FID at intervals
         if epoch % fid_eval_interval == 0:
             print("Generating images for FID computation...")
             xt = torch.randn((fid_sample_size, 1, 28, 28)).to(device)
-            sampled_images = sample(model, xt, noise_scheduler, params, device, 100) #play around with this one to improve fid
+            sampled_images = sample(model, xt, noise_scheduler, params, device, 100)
 
             # # Save sampled images for visualization
             # for idx, img in enumerate(sampled_images):
@@ -91,7 +90,14 @@ def train(
     torch.save(model.state_dict(), f"{save_path}_{curr_time}_e{epoch}.pth")
        
 
-def sample(model, xt, scheduler, config, device, batch_size):
+def sample( 
+    model: nn.Module,
+    xt: torch.Tensor,
+    scheduler: NoiseScheduler,
+    config: Dict[str, Any],
+    device: str,
+    batch_size: int
+):
     """
     Sample stepwise by going backward one timestep at a time, processing in batches.
     """
@@ -126,9 +132,9 @@ def sample(model, xt, scheduler, config, device, batch_size):
     return ims_rgb_batch
 
 
-def evaluate_on_test_set(model, test_loader, noise_scheduler, device):
+def evaluate_on_test_set(model: nn.Module, test_loader: DataLoader, noise_scheduler: NoiseScheduler, device: str) -> float:
     """
-    Evaluate the model on a test set and return the average loss.
+        Evaluate the model on a test set and return the average loss.
     """
     model.eval()  # Set model to evaluation mode
     criterion = torch.nn.MSELoss()
@@ -176,6 +182,6 @@ if __name__ == '__main__':
         noise_scheduler=scheduler,
         lr=params["learning_rate"],
         activations_path=params["activations_path"],
-        save_path=params["model_path"], 
+        save_path=params["model_path"],
         test_loader = test_loader
     )
